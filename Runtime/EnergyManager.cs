@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace ExerciceCustomEditor
+namespace NullCheckerRuntime
 {
     public class EnergyManager : MonoBehaviour
     {
