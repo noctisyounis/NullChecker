@@ -6,7 +6,7 @@ namespace NullCheckerEditor
 {
     public class NullCheckerSettingsProvider : SettingsProvider
     {
-        public const string k_MyCustomSettingsPath = "Assets/NullChecker/Editor/MyCustomSettings.asset";
+        public const string k_MyCustomSettingsPath = "Packages/NullChecker/Editor/MyCustomSettings.asset";
         private SerializedObject _nullCheckerSettings;
 
         class Styles

@@ -6,7 +6,7 @@ namespace NullCheckerEditor
     public class NullCheckerSettings : ScriptableObject
     {
         #region Exposed
-        public const string k_MyCustomSettingsPath = "Assets/NullChecker/Editor/MyCustomSettings.asset";
+        public const string k_MyCustomSettingsPath = "Packages/NullChecker/Editor/MyCustomSettings.asset";
 
         [SerializeField]
         private float _linePixelSize = 18f;
