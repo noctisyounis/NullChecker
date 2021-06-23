@@ -1,3 +1,4 @@
+using System.IO;
 using UnityEditor;
 using UnityEngine;
 
@@ -6,7 +7,8 @@ namespace NullCheckerEditor
     public class NullCheckerSettings : ScriptableObject
     {
         #region Exposed
-        public const string k_MyCustomSettingsPath = "Packages/NullChecker/Editor/MyCustomSettings.asset";
+        public const string SETTINGS_ASSETS_DIRECTORY = "NullChecker/Settings";
+        public const string SETTINGS_ASSETS_NAME = "NullCheckerSettings.asset";
 
         [SerializeField]
         private float _linePixelSize = 18f;
@@ -26,22 +28,27 @@ namespace NullCheckerEditor
         [SerializeField]
         private string _defaultWarning = "Value is Null. Need to FIX before play !";
 
-        public float LinePixelSize{ get => _linePixelSize; }
-        public float LinePixelSpacing{ get => _linePixelSpacing; }
-        public Color OkColor{ get => _okColor; }
-        public Color ErrorColor{ get => _errorColor; }
-        public string BaseAssembly{ get => _baseAssembly; }
-        public string DefaultWarning{ get => _defaultWarning; }
+        public float LinePixelSize => _linePixelSize;
+        public float LinePixelSpacing => _linePixelSpacing;
+        public Color OkColor => _okColor;
+        public Color ErrorColor => _errorColor;
+        public string BaseAssembly => _baseAssembly; 
+        public string DefaultWarning => _defaultWarning; 
         
         #endregion
 
         internal static NullCheckerSettings GetOrCreateSettings()
         {
-            var settings = AssetDatabase.LoadAssetAtPath<NullCheckerSettings>(k_MyCustomSettingsPath);
+            var settingsPath = $"{SETTINGS_ASSETS_DIRECTORY}/{SETTINGS_ASSETS_NAME}";
+
+            var settings = (NullCheckerSettings)EditorGUIUtility.Load(settingsPath);//AssetDatabase.LoadAssetAtPath<NullCheckerSettings>(k_MyCustomSettingsPath);
             if (settings == null)
             {
                 settings = ScriptableObject.CreateInstance<NullCheckerSettings>();
-                AssetDatabase.CreateAsset(settings, k_MyCustomSettingsPath);
+                
+                Directory.CreateDirectory($"{Application.dataPath}/Editor Default Resources/{SETTINGS_ASSETS_DIRECTORY}");
+                AssetDatabase.Refresh();
+                AssetDatabase.CreateAsset(settings, $"Assets/Editor Default Resources/{settingsPath}");
                 AssetDatabase.SaveAssets();
             }
             return settings;
