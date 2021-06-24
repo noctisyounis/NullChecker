@@ -1,5 +1,4 @@
 using System.Reflection;
-using System.IO;
 using System;
 using UnityEditor;
 using UnityEngine;
@@ -114,7 +113,7 @@ namespace NullCheckerEditor
 
             _linePixelSize = _settings.LinePixelSize;
             _linePixelSpacing = _settings.LinePixelSpacing;
-            _okColor = _settings.OkColor;
+            _okColor = _settings.ValidColor;
             _errorColor = _settings.ErrorColor;
             _baseAssembly = _settings.BaseAssembly;
             _defaultWarning = _settings.DefaultWarning;
@@ -174,9 +173,11 @@ namespace NullCheckerEditor
                 {
                     result = Type.GetType(path, true);
                     return result;
-                }catch(Exception e)
+                }
+                
+                catch(Exception e)
                 {
-                    
+                    LogError(e.StackTrace);
                 }
             }
 
