@@ -38,7 +38,10 @@ namespace NullCheckerEditor
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label) 
         {
             this._property = property;
-            DeterminePropertyType();
+            if(_type == null)
+            {
+                DeterminePropertyType();
+            }
 
             EditorGUI.BeginProperty(position, label, _property);
             var indent = EditorGUI.indentLevel;
