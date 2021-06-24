@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Reflection;
 using System;
 using UnityEditor;
@@ -16,7 +17,11 @@ namespace NullCheckerEditor
         public ObjectDrawer() : base()
         {
             InitializeFromSettings();
-            PopulateAssemblyNames();
+            if(_typeNames == null)
+            {
+                PopulateTypes();
+            }
+
             _warningText = _defaultWarning;
         }
 
@@ -56,7 +61,7 @@ namespace NullCheckerEditor
 
                 GUI.backgroundColor = defaultColor;
 
-                if(_type != null)
+                if(_type != null && _owner != null)
                 {
                     if(_type.Equals(typeof(GameObject)))
                     {
@@ -134,7 +139,10 @@ namespace NullCheckerEditor
 
         private void DeterminePropertyType()
         {
-            _owner = (MonoBehaviour) _property.serializedObject.targetObject;
+            if(_property.serializedObject.targetObject is MonoBehaviour)
+            {
+                _owner = (MonoBehaviour) _property.serializedObject.targetObject;
+            }
             var stringType = _property.type;
             var cleanedStringType = stringType
                                     .Replace("PPtr<$", "")
@@ -153,35 +161,30 @@ namespace NullCheckerEditor
             _property.objectReferenceValue = (UnityEngine.Object)Convert.ChangeType(_owner.GetComponent(_type), _type);
         }
 
-        private void PopulateAssemblyNames()
+        private void PopulateTypes()
         {
-            _assemblyNames = new string[_assemblies.Length];
+            _typeNames = new Dictionary<TypeInfo, Type>();
+
             for (int i = 0; i < _assemblies.Length; i++)
             {
-                _assemblyNames[i] = _assemblies[i].FullName.Split(',')[0];
+                foreach (var typeInfo in _assemblies[i].DefinedTypes)
+                {
+                    _typeNames.Add(typeInfo, typeInfo.AsType());
+                }
             }
         }
 
         private Type FindTypeInAssemblies(string type)
         {
             Type result = null;
-            foreach (var assembly in _assemblyNames)
-            {
-                var path = $"{assembly}.{type}, {assembly}";
 
-                try
+            foreach (var item in _typeNames)
+            {
+                if(type.Equals(item.Key.Name))
                 {
-                    result = Type.GetType(path, true);
-                    return result;
-                }
-                
-                catch(Exception e)
-                {
-                    LogError(e.StackTrace);
+                    return item.Value;
                 }
             }
-
-            result = Type.GetType($"{type}, {_baseAssembly}");
 
             return result;
         }
@@ -204,7 +207,7 @@ namespace NullCheckerEditor
         private Type _type;
         private string _warningText;
 
-        private static string[] _assemblyNames;
+        private static Dictionary<TypeInfo, Type> _typeNames;
         private static Assembly[] _assemblies = AppDomain.CurrentDomain.GetAssemblies();
 
         #endregion
