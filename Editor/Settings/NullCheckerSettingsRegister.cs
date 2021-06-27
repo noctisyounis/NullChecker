@@ -15,6 +15,7 @@ namespace NullCheckerEditor
 
                 guiHandler = (searchContext) =>
                 {
+                    
                     var settings = NullCheckerSettings.GetSerializedSettings();
 
                     EditorGUILayout.PropertyField(settings.FindProperty("_linePixelSize"), new GUIContent("Line size in pixels"));
@@ -23,7 +24,7 @@ namespace NullCheckerEditor
                     EditorGUILayout.PropertyField(settings.FindProperty("_errorColor"), new GUIContent("Field color when null"));
                     EditorGUILayout.PropertyField(settings.FindProperty("_defaultWarning"), new GUIContent("Warning message diplayed when null"));
                     EditorGUILayout.PropertyField(settings.FindProperty("_baseAssembly"), new GUIContent("Default assembly"));
-                    EditorGUILayout.PropertyField(settings.FindProperty("_settingPathOverride"), new GUIContent("Setting path"));
+                    EditorGUILayout.PropertyField(settings.FindProperty("_settingPathOverride"), new GUIContent("Setting path"));                    
 
                     settings.ApplyModifiedProperties();
                     NullCheckerSettings.Instance.CheckPath();
