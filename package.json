@@ -1,7 +1,7 @@
 {
   "name": "com.transmedia.nullchecker",
   "displayName": "Null Checker",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "unity": "2020.3",
   "description": "Null checker allows you to see the null references in your editor and fix them.",
   "keywords": [
