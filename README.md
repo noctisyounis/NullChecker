@@ -1,5 +1,5 @@
 # Null checker
-**version: 1.1.2**   
+**version: 1.2.1**   
 **Unity version : 2020.3+**
 
 ## Description
