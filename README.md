@@ -1,5 +1,5 @@
 # Null checker
-**version: 1.2.1**   
+**version: 1.4.0**   
 **Unity version : 2020.3+**
 
 ## Description
@@ -18,11 +18,9 @@ You will find by default a '_Assets/Nullchecker/Settings/NullCheckerSettings.ass
 - **Line pixel size**: Hight of a single line to display the error message.  
 - **Line pixel spacing**: Space in pixel between two line of error message.  
 - **Valid color**: Color your _[Object](https://docs.unity3d.com/ScriptReference/Object.html)_ reference will be highlighted with if a reference exists.  
-- **Error color**: Color your _[Object](https://docs.unity3d.com/ScriptReference/Object.html)_ reference will be highlighted with if a reference is missing.  
-- **Base assembly**: Assembly that tolerate classes without namespace.   
+- **Error color**: Color your _[Object](https://docs.unity3d.com/ScriptReference/Object.html)_ reference will be highlighted with if a reference is missing.
 - **Default warning**: Default message displayed next to a missing reference.   
 - **Setting path override**: Allow you to specify a new path for the setting of the _null checker_ if you want to.   
 
-## Known issues
-- _[Image](https://docs.unity3d.com/2018.3/Documentation/ScriptReference/UI.Image.html)_ type is not recognized as a fixable refence at the moment.   
+## Known issues 
 - The _Setting path override_ will be overriden at Unity start up if it has been modified.
