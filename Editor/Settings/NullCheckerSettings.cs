@@ -17,8 +17,6 @@ namespace NullCheckerEditor
         [SerializeField]
         private Color _errorColor = new Color(79f/255, 0f, 0f);
         [SerializeField]
-        private string _baseAssembly = "Assembly-CSharp";
-        [SerializeField]
         private string _defaultWarning = "Value is Null. Need to FIX before play !";
         [SerializeField]
         private string _settingPathOverride;
@@ -48,8 +46,7 @@ namespace NullCheckerEditor
         public float LinePixelSize => _linePixelSize;
         public float LinePixelSpacing => _linePixelSpacing;
         public Color ValidColor => _validColor;
-        public Color ErrorColor => _errorColor;
-        public string BaseAssembly => _baseAssembly;
+        public Color ErrorColor => _errorColor;        
         public string DefaultWarning => _defaultWarning;
 
         #endregion

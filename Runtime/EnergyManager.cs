@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace NullCheckerRuntime
+namespace NullChecker.Runtime
 {
     public class EnergyManager : MonoBehaviour
     {

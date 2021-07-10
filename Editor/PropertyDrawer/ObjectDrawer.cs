@@ -17,10 +17,6 @@ namespace NullCheckerEditor
         public ObjectDrawer() : base()
         {
             InitializeFromSettings();
-            if(_typeNames == null)
-            {
-                PopulateTypes();
-            }
 
             _warningText = _defaultWarning;
         }
@@ -39,13 +35,13 @@ namespace NullCheckerEditor
         {
             this._property = property;
 
-            if(_types == null || _types.Count == 0)
+            if(_type == null)
             {
-                DeterminePropertyPossibleTypes();
-                PopulateComponentTypesFrom(_types);
+                DeterminePropertyType();
             }
 
             EditorGUI.BeginProperty(position, label, _property);
+
             var indent = EditorGUI.indentLevel;
             EditorGUI.indentLevel = 0;
 
@@ -66,13 +62,13 @@ namespace NullCheckerEditor
 
                 GUI.backgroundColor = defaultColor;
 
-                if(_types.Count > 0 && _owner != null)
+                if(_type != null && _owner != null)
                 {
-                    if(_types.Contains(typeof(GameObject)))
+                    if(_type.Equals(typeof(GameObject)))
                     {
                         DrawFixGameObjectButton(buttonRect);
                     }
-                    else if(_componentTypes.Count > 0)
+                    else if(_type.IsSubclassOf(typeof(Component)))
                     {
                         DrawFixComponentButton(buttonRect);
                     }
@@ -80,6 +76,7 @@ namespace NullCheckerEditor
             }
 
             EditorGUI.indentLevel = indent;
+            
             EditorGUI.EndProperty();
         }
 
@@ -125,7 +122,6 @@ namespace NullCheckerEditor
             _linePixelSpacing = _settings.LinePixelSpacing;
             _okColor = _settings.ValidColor;
             _errorColor = _settings.ErrorColor;
-            _baseAssembly = _settings.BaseAssembly;
             _defaultWarning = _settings.DefaultWarning;
         }
 
@@ -142,30 +138,30 @@ namespace NullCheckerEditor
             _warningText = _defaultWarning;
         }
 
-        private void DeterminePropertyPossibleTypes()
+        private void DeterminePropertyType()
         {
             if(_property.serializedObject.targetObject is MonoBehaviour)
             {
                 _owner = (MonoBehaviour) _property.serializedObject.targetObject;
             }
-            var stringType = _property.type;
-            var cleanedStringType = stringType
-                                    .Replace("PPtr<$", "")
-                                    .Replace(">", "");
 
-            _types = FindTypeInAssemblies(cleanedStringType);
-        }
-
-        private void PopulateComponentTypesFrom(List<Type> types)
-        {
-            _componentTypes = new List<Type>();
-
-            foreach (var item in _types)
+            var targetObjectType = _property.serializedObject.targetObject.GetType();
+            var property = targetObjectType.GetProperty(_property.name, 
+                                                        BindingFlags.Instance | 
+                                                        BindingFlags.NonPublic | 
+                                                        BindingFlags.Public);
+            if(property != null)
             {
-                if(item.IsSubclassOf(typeof(Component)))
-                {
-                    _componentTypes.Add(item);
-                }
+               _type = property.PropertyType;
+            }
+            
+            else
+            {
+                var field = targetObjectType.GetField(_property.name, 
+                                                    BindingFlags.Instance | 
+                                                    BindingFlags.NonPublic | 
+                                                    BindingFlags.Public);
+                _type = field.FieldType;
             }
         }
 
@@ -174,83 +170,11 @@ namespace NullCheckerEditor
             _property.objectReferenceValue = _owner.gameObject;
         }
 
-        // private void FindValueToFixComponent()
-        // {
-        //     foreach (var type in _types)
-        //     {
-        //         var try
-        //         if(_property.objectReferenceValue == null)
-        //         {
-        //             _property.objectReferenceValue = (UnityEngine.Object)Convert.ChangeType(_owner.GetComponent(type), type);
-        //         }
-        //         else if()
-        //         {
-
-        //         }
-        //     }
-        // }
-
         private void FindValueToFixComponent()
         {
-            var otherPossibleComponents = new List<UnityEngine.Object>();
-            foreach (var type in _componentTypes)
-            {
-                var method = typeof(Component).GetMethod("GetComponent", new Type[]{}).MakeGenericMethod(type);
-                var component = (UnityEngine.Object)method.Invoke(_owner, new object[]{});
+            var method = typeof(Component).GetMethod("GetComponent", new Type[]{}).MakeGenericMethod(_type);
 
-                if(_property.objectReferenceValue == null)
-                {
-                    _property.objectReferenceValue = component;
-                }
-                else
-                {
-                    otherPossibleComponents.Add(component);
-                }
-            }
-
-            if(otherPossibleComponents.Count == 0) return;
-
-            DebugOtherPossibleComponents(otherPossibleComponents);
-        }
-
-        private void DebugOtherPossibleComponents(List<UnityEngine.Object> others)
-        {
-            var text = "Other Components have been found but not sets : \n";
-
-            foreach (var item in others)
-            {
-                text += $"\t-\t{item.name}\n";
-            }
-
-            Debug.LogWarning(text);
-        }
-
-        private void PopulateTypes()
-        {
-            _typeNames = new Dictionary<TypeInfo, Type>();
-
-            for (int i = 0; i < _assemblies.Length; i++)
-            {
-                foreach (var typeInfo in _assemblies[i].DefinedTypes)
-                {
-                    _typeNames.Add(typeInfo, typeInfo.AsType());
-                }
-            }
-        }
-
-        private List<Type> FindTypeInAssemblies(string type)
-        {
-            List<Type> result = new List<Type>();
-
-            foreach (var item in _typeNames)
-            {
-                if(type.Equals(item.Key.Name))
-                {
-                    result.Add(item.Value);
-                }
-            }
-
-            return result;
+            _property.objectReferenceValue = (UnityEngine.Object)method.Invoke(_owner, new object[]{});
         }
 
         #endregion
@@ -263,17 +187,12 @@ namespace NullCheckerEditor
         private float _linePixelSpacing = 2f;
         private Color _okColor = new Color(0f, 79f/255, 5f/255);
         private Color _errorColor = new Color(79f/255, 0f, 0f);
-        private string _baseAssembly = "Assembly-CSharp";
         private string _defaultWarning = "Value is Null. Need to FIX before play !";
 
         private SerializedProperty _property;
         private MonoBehaviour _owner;
-        private List<Type> _types;
-        private List<Type> _componentTypes;
+        private Type _type;
         private string _warningText;
-
-        private static Dictionary<TypeInfo, Type> _typeNames;
-        private static Assembly[] _assemblies = AppDomain.CurrentDomain.GetAssemblies();
 
         #endregion
     }
