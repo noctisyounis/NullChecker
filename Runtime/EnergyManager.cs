@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace NullCheckerRuntime
 {
@@ -31,6 +32,9 @@ namespace NullCheckerRuntime
 
         [SerializeField]
         private AudioClip _audioClip;
+
+        [SerializeField]
+        private Image _image;
 
         #endregion
     }

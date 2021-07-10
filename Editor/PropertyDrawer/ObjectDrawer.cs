@@ -38,9 +38,11 @@ namespace NullCheckerEditor
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label) 
         {
             this._property = property;
-            if(_type == null)
+
+            if(_types == null || _types.Count == 0)
             {
-                DeterminePropertyType();
+                DeterminePropertyPossibleTypes();
+                PopulateComponentTypesFrom(_types);
             }
 
             EditorGUI.BeginProperty(position, label, _property);
@@ -64,13 +66,13 @@ namespace NullCheckerEditor
 
                 GUI.backgroundColor = defaultColor;
 
-                if(_type != null && _owner != null)
+                if(_types.Count > 0 && _owner != null)
                 {
-                    if(_type.Equals(typeof(GameObject)))
+                    if(_types.Contains(typeof(GameObject)))
                     {
                         DrawFixGameObjectButton(buttonRect);
                     }
-                    else if(_type.IsSubclassOf(typeof(Component)))
+                    else if(_componentTypes.Count > 0)
                     {
                         DrawFixComponentButton(buttonRect);
                     }
@@ -106,7 +108,7 @@ namespace NullCheckerEditor
                 FindValueToFixComponent();
 
                 ResetWarningText();
-                _warningText += " (No usable component found)";
+                _warningText += " (Not found)";
             }
         }
 
@@ -140,7 +142,7 @@ namespace NullCheckerEditor
             _warningText = _defaultWarning;
         }
 
-        private void DeterminePropertyType()
+        private void DeterminePropertyPossibleTypes()
         {
             if(_property.serializedObject.targetObject is MonoBehaviour)
             {
@@ -151,7 +153,20 @@ namespace NullCheckerEditor
                                     .Replace("PPtr<$", "")
                                     .Replace(">", "");
 
-            _type = FindTypeInAssemblies(cleanedStringType);
+            _types = FindTypeInAssemblies(cleanedStringType);
+        }
+
+        private void PopulateComponentTypesFrom(List<Type> types)
+        {
+            _componentTypes = new List<Type>();
+
+            foreach (var item in _types)
+            {
+                if(item.IsSubclassOf(typeof(Component)))
+                {
+                    _componentTypes.Add(item);
+                }
+            }
         }
 
         private void FindValueToFixGameObject()
@@ -159,9 +174,55 @@ namespace NullCheckerEditor
             _property.objectReferenceValue = _owner.gameObject;
         }
 
+        // private void FindValueToFixComponent()
+        // {
+        //     foreach (var type in _types)
+        //     {
+        //         var try
+        //         if(_property.objectReferenceValue == null)
+        //         {
+        //             _property.objectReferenceValue = (UnityEngine.Object)Convert.ChangeType(_owner.GetComponent(type), type);
+        //         }
+        //         else if()
+        //         {
+
+        //         }
+        //     }
+        // }
+
         private void FindValueToFixComponent()
         {
-            _property.objectReferenceValue = (UnityEngine.Object)Convert.ChangeType(_owner.GetComponent(_type), _type);
+            var otherPossibleComponents = new List<UnityEngine.Object>();
+            foreach (var type in _componentTypes)
+            {
+                var method = typeof(Component).GetMethod("GetComponent", new Type[]{}).MakeGenericMethod(type);
+                var component = (UnityEngine.Object)method.Invoke(_owner, new object[]{});
+
+                if(_property.objectReferenceValue == null)
+                {
+                    _property.objectReferenceValue = component;
+                }
+                else
+                {
+                    otherPossibleComponents.Add(component);
+                }
+            }
+
+            if(otherPossibleComponents.Count == 0) return;
+
+            DebugOtherPossibleComponents(otherPossibleComponents);
+        }
+
+        private void DebugOtherPossibleComponents(List<UnityEngine.Object> others)
+        {
+            var text = "Other Components have been found but not sets : \n";
+
+            foreach (var item in others)
+            {
+                text += $"\t-\t{item.name}\n";
+            }
+
+            Debug.LogWarning(text);
         }
 
         private void PopulateTypes()
@@ -177,15 +238,15 @@ namespace NullCheckerEditor
             }
         }
 
-        private Type FindTypeInAssemblies(string type)
+        private List<Type> FindTypeInAssemblies(string type)
         {
-            Type result = null;
+            List<Type> result = new List<Type>();
 
             foreach (var item in _typeNames)
             {
                 if(type.Equals(item.Key.Name))
                 {
-                    return item.Value;
+                    result.Add(item.Value);
                 }
             }
 
@@ -207,7 +268,8 @@ namespace NullCheckerEditor
 
         private SerializedProperty _property;
         private MonoBehaviour _owner;
-        private Type _type;
+        private List<Type> _types;
+        private List<Type> _componentTypes;
         private string _warningText;
 
         private static Dictionary<TypeInfo, Type> _typeNames;
