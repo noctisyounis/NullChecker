@@ -1,86 +1,80 @@
-using System.Collections.Generic;
 using System.Reflection;
 using System;
 using UnityEditor;
 using UnityEngine;
 
 using Component = UnityEngine.Component;
-using static UnityEngine.Debug;
 
 namespace NullCheckerEditor
 {
     [CustomPropertyDrawer(typeof(UnityEngine.Object), true)]
     public class ObjectDrawer : PropertyDrawer
     {
-        #region Unity API
-
         public ObjectDrawer() : base()
         {
-            InitializeFromSettings();
-            if(_typeNames == null)
-            {
-                PopulateTypes();
-            }
-
-            _warningText = _defaultWarning;
+            ConformToSettings();
+            PopulateAssemblyNames();
         }
 
-        public override float GetPropertyHeight (SerializedProperty property, GUIContent label) 
+        #region Unity API
+
+        public override void OnGUI(Rect rect, SerializedProperty property, GUIContent label) 
         {
-            var correctorShort = _linePixelSize / EditorGUI.GetPropertyHeight (property);
-            var correctorLong =  (_linePixelSpacing + _linePixelSize) / EditorGUI.GetPropertyHeight (property) * 3;
+            ConformToSettings();
+            _property = property;
 
-            var coefficient = MustBeShort() ? correctorShort : correctorLong;
-
-            return EditorGUI.GetPropertyHeight (property) * coefficient;
-        }
-
-        public override void OnGUI(Rect position, SerializedProperty property, GUIContent label) 
-        {
-            this._property = property;
-
-            if(_types == null || _types.Count == 0)
+            if(_type == null)
             {
-                DeterminePropertyPossibleTypes();
-                PopulateComponentTypesFrom(_types);
+                _type = DeterminePropertyType();
             }
 
-            EditorGUI.BeginProperty(position, label, _property);
-            var indent = EditorGUI.indentLevel;
-            EditorGUI.indentLevel = 0;
+            EditorGUI.BeginProperty(rect, label, _property);
+            EditorGUI.DrawRect(rect, WillNeedFix() ? _errorColor : _okColor);
 
-            var fieldRect = new Rect(position.x, position.y, position.width, _linePixelSize);
-            var warningRect = new Rect(position.x, position.y + (_linePixelSize + _linePixelSpacing), position.width, _linePixelSize);
-            var buttonRect = new Rect(position.x, warningRect.y + (_linePixelSize + _linePixelSpacing), position.width, _linePixelSize);
-
-            EditorGUI.DrawRect(position, MustBeShort() ? _okColor : _errorColor);
-
+            var lineHeight = EditorGUIUtility.singleLineHeight + _lineHeight;
+            var fieldRect = new Rect(rect.x, rect.y, rect.width, lineHeight);
             EditorGUI.PropertyField(fieldRect, _property, label);
-            
+
             if(!_property.objectReferenceValue)
             {
-                Color defaultColor = GUI.backgroundColor;
-                GUI.backgroundColor = Color.red;
-                
-                DrawWarningLabel(warningRect);
+                var warningRect = new Rect(rect.x, 
+                                           rect.y + lineHeight + _lineSpacing, 
+                                           rect.width, 
+                                           lineHeight);
 
-                GUI.backgroundColor = defaultColor;
+                if(_warningText.Length > 0) DrawWarningLabel(warningRect);
 
-                if(_types.Count > 0 && _owner != null)
+                if(_type != null && _ownerMono != null)
                 {
-                    if(_types.Contains(typeof(GameObject)))
+                    var buttonRect = new Rect(rect.x,
+                                              (_warningText.Length > 0 ? warningRect.y : rect.y) + lineHeight + _lineSpacing, 
+                                              rect.width, 
+                                              lineHeight);
+
+                    if(_type.Equals(typeof(GameObject)))
                     {
                         DrawFixGameObjectButton(buttonRect);
                     }
-                    else if(_componentTypes.Count > 0)
+                    else if(_type.IsSubclassOf(typeof(Component)))
                     {
                         DrawFixComponentButton(buttonRect);
                     }
                 }
             }
 
-            EditorGUI.indentLevel = indent;
             EditorGUI.EndProperty();
+        }
+
+        public override float GetPropertyHeight (SerializedProperty property, GUIContent label) 
+        {
+            int lineCount = 1;
+            if(WillNeedFix())
+            {
+                if(_warningText.Length > 0) lineCount++;
+                if(CanBeFixed()) lineCount++;
+            }
+
+            return (EditorGUIUtility.singleLineHeight + _lineHeight) * lineCount + _lineSpacing * (lineCount - 1);
         }
 
         #endregion
@@ -95,7 +89,7 @@ namespace NullCheckerEditor
 
         private void DrawFixGameObjectButton(Rect rect)
         {
-            if(GUI.Button(rect, "FIX game object"))
+            if(GUI.Button(rect, "FIX GameObject"))
             {
                 FindValueToFixGameObject();
             }
@@ -107,7 +101,7 @@ namespace NullCheckerEditor
             {
                 FindValueToFixComponent();
 
-                ResetWarningText();
+                _warningText = _defaultWarning;
                 _warningText += " (Not found)";
             }
         }
@@ -117,163 +111,127 @@ namespace NullCheckerEditor
 
         #region Utils
 
-        private void InitializeFromSettings()
+        private void ConformToSettings()
         {
             _settings = NullCheckerSettings.GetOrCreateSettings();
 
-            _linePixelSize = _settings.LinePixelSize;
-            _linePixelSpacing = _settings.LinePixelSpacing;
+            _lineHeight = _settings.LinePixelSize;
+            _lineSpacing = _settings.LinePixelSpacing;
             _okColor = _settings.ValidColor;
             _errorColor = _settings.ErrorColor;
-            _baseAssembly = _settings.BaseAssembly;
             _defaultWarning = _settings.DefaultWarning;
-        }
-
-        private bool MustBeShort()
-        {
-            if(_property == null) return true;
-            if(!_property.objectReferenceValue) return false;
-
-            return true;
-        }
-
-        private void ResetWarningText()
-        {
             _warningText = _defaultWarning;
         }
 
-        private void DeterminePropertyPossibleTypes()
+        private bool WillNeedFix()
         {
-            if(_property.serializedObject.targetObject is MonoBehaviour)
-            {
-                _owner = (MonoBehaviour) _property.serializedObject.targetObject;
-            }
-            var stringType = _property.type;
-            var cleanedStringType = stringType
-                                    .Replace("PPtr<$", "")
-                                    .Replace(">", "");
+            if(_property == null) return false;
+            if(!_property.objectReferenceValue) return true;
 
-            _types = FindTypeInAssemblies(cleanedStringType);
+            return false;
         }
 
-        private void PopulateComponentTypesFrom(List<Type> types)
+        private bool CanBeFixed()
         {
-            _componentTypes = new List<Type>();
+            if(_type == null) return false;
+            if(_type.Equals(typeof(GameObject)) || _type.IsSubclassOf(typeof(Component))) return true;
 
-            foreach (var item in _types)
+            return false;
+        }
+
+        private Type DeterminePropertyType()
+        {
+            var targetObject = _property.serializedObject.targetObject;
+            if(targetObject is MonoBehaviour)
             {
-                if(item.IsSubclassOf(typeof(Component)))
-                {
-                    _componentTypes.Add(item);
-                }
+                _ownerMono = (MonoBehaviour)targetObject;
             }
+
+            var targetObjectType = targetObject.GetType();
+            var property = targetObjectType.GetProperty(_property.name, 
+                                                        BindingFlags.Instance | 
+                                                        BindingFlags.NonPublic | 
+                                                        BindingFlags.Public);
+
+            if(property != null) return property.PropertyType;
+            
+            var field = targetObjectType.GetField(_property.name, 
+                                                    BindingFlags.Instance | 
+                                                    BindingFlags.NonPublic | 
+                                                    BindingFlags.Public);
+
+            if(field != null) return field.FieldType;
+
+            else
+            {
+                var element = FindTypeInAssemblies(_property.type);
+                if(element != null) return element;
+            }
+
+            throw new Exception($"NullChecker: No suitable type found for '{_property.name}'({_property.displayName}) of type '{_property.type}' in '{_property.serializedObject.targetObject.name}'");
         }
 
         private void FindValueToFixGameObject()
         {
-            _property.objectReferenceValue = _owner.gameObject;
+            _property.objectReferenceValue = _ownerMono.gameObject;
         }
-
-        // private void FindValueToFixComponent()
-        // {
-        //     foreach (var type in _types)
-        //     {
-        //         var try
-        //         if(_property.objectReferenceValue == null)
-        //         {
-        //             _property.objectReferenceValue = (UnityEngine.Object)Convert.ChangeType(_owner.GetComponent(type), type);
-        //         }
-        //         else if()
-        //         {
-
-        //         }
-        //     }
-        // }
 
         private void FindValueToFixComponent()
         {
-            var otherPossibleComponents = new List<UnityEngine.Object>();
-            foreach (var type in _componentTypes)
-            {
-                var method = typeof(Component).GetMethod("GetComponent", new Type[]{}).MakeGenericMethod(type);
-                var component = (UnityEngine.Object)method.Invoke(_owner, new object[]{});
-
-                if(_property.objectReferenceValue == null)
-                {
-                    _property.objectReferenceValue = component;
-                }
-                else
-                {
-                    otherPossibleComponents.Add(component);
-                }
-            }
-
-            if(otherPossibleComponents.Count == 0) return;
-
-            DebugOtherPossibleComponents(otherPossibleComponents);
+            var method = typeof(Component).GetMethod("GetComponent", new Type[]{}).MakeGenericMethod(_type);
+            _property.objectReferenceValue = (UnityEngine.Object)method.Invoke(_ownerMono, new object[]{});
         }
 
-        private void DebugOtherPossibleComponents(List<UnityEngine.Object> others)
+        private void PopulateAssemblyNames()
         {
-            var text = "Other Components have been found but not sets : \n";
-
-            foreach (var item in others)
-            {
-                text += $"\t-\t{item.name}\n";
-            }
-
-            Debug.LogWarning(text);
-        }
-
-        private void PopulateTypes()
-        {
-            _typeNames = new Dictionary<TypeInfo, Type>();
-
+            _assemblyNames = new string[_assemblies.Length];
             for (int i = 0; i < _assemblies.Length; i++)
             {
-                foreach (var typeInfo in _assemblies[i].DefinedTypes)
-                {
-                    _typeNames.Add(typeInfo, typeInfo.AsType());
-                }
+                _assemblyNames[i] = _assemblies[i].FullName.Split(',')[0];
             }
         }
 
-        private List<Type> FindTypeInAssemblies(string type)
+        private Type FindTypeInAssemblies(string type)
         {
-            List<Type> result = new List<Type>();
-
-            foreach (var item in _typeNames)
+            if(type.Contains("PPtr<$"))
             {
-                if(type.Equals(item.Key.Name))
-                {
-                    result.Add(item.Value);
-                }
+                type = type.Replace("PPtr<$", "");
+                type = type.Replace(">", "");
             }
 
-            return result;
-        }
+            foreach (var assembly in _assemblyNames)
+            {
+                var path = $"{assembly}.{type}, {assembly}";
 
+                try
+                {
+                    return Type.GetType(path, true);
+                }
+                
+                catch(Exception){}
+            }
+
+            return Type.GetType($"{type}, Assembly-CSharp");
+        }
+        
         #endregion
 
 
         #region Private
-        private NullCheckerSettings _settings;
 
-        private float _linePixelSize = 18f;
-        private float _linePixelSpacing = 2f;
-        private Color _okColor = new Color(0f, 79f/255, 5f/255);
-        private Color _errorColor = new Color(79f/255, 0f, 0f);
-        private string _baseAssembly = "Assembly-CSharp";
-        private string _defaultWarning = "Value is Null. Need to FIX before play !";
+        private NullCheckerSettings _settings;
+        private float _lineHeight = 0;
+        private float _lineSpacing = 0;
+        private Color _okColor = Color.green;
+        private Color _errorColor = Color.red;
+        private string _defaultWarning;
 
         private SerializedProperty _property;
-        private MonoBehaviour _owner;
-        private List<Type> _types;
-        private List<Type> _componentTypes;
+        private MonoBehaviour _ownerMono;
+        private Type _type;
         private string _warningText;
-
-        private static Dictionary<TypeInfo, Type> _typeNames;
-        private static Assembly[] _assemblies = AppDomain.CurrentDomain.GetAssemblies();
+        private string[] _assemblyNames;
+        private Assembly[] _assemblies = AppDomain.CurrentDomain.GetAssemblies();
 
         #endregion
     }
