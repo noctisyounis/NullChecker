@@ -16,6 +16,5 @@ MonoBehaviour:
   _linePixelSpacing: 2
   _validColor: {r: 0, g: 0.30980393, b: 0.019607844, a: 1}
   _errorColor: {r: 0.30980393, g: 0, b: 0, a: 1}
-  _baseAssembly: Assembly-CSharp
   _defaultWarning: Value is Null. Need to FIX before play !
   _settingPathOverride: Assets\NullChecker\Settings

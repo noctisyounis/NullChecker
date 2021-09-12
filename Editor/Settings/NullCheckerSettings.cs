@@ -24,12 +24,13 @@ namespace NullCheckerEditor
         #endregion
 
 
+        #region Unity API
+
         private void OnEnable() 
         {
-            /* Debug.Log("onEnabled"); */
             if(Instance != null)
             {
-                /* Debug.Log($"path override has found an instance somewhere... "); */
+                //Debug.Log($"path override has been found at {Instance._settingPathOverride}");
                 _pathOverride = Instance._settingPathOverride;
             }
 
@@ -38,6 +39,8 @@ namespace NullCheckerEditor
                 _pathOverride = _settingPathOverride;
             }
         }
+             
+        #endregion
 
 
         #region Public Properties
@@ -59,6 +62,13 @@ namespace NullCheckerEditor
 
         #endregion
 
+
+        #region Properties
+
+        public static SerializedObject SerializedSettings => new SerializedObject(GetOrCreateSettings());
+             
+        #endregion
+
         
         #region Main
 
@@ -73,28 +83,23 @@ namespace NullCheckerEditor
 
             if(settings != null)
             {
-                /* Debug.Log($"Settings found at <color=cyan>'{settingsPath}'</color>"); */
+                //Debug.Log($"Settings found at <color=cyan>'{settingsPath}'</color>");
                 return Instance = settings;
             }
 
-            /* Debug.Log($"No setting found at path override, try to find it at default path"); */
+            //Debug.Log($"No setting found at path override, try to find it at default path");
             settingsPath = $"Assets\\{SETTINGS_ASSETS_DIRECTORY}";
             settings = AssetDatabase.LoadAssetAtPath<NullCheckerSettings>($"{settingsPath}\\{SETTINGS_ASSETS_NAME}");
 
             if(settings != null)
             {
-                /* Debug.Log($"Settings found at <color=cyan>'{settingsPath}'</color>"); */
+                Debug.Log($"Settings found at <color=cyan>'{settingsPath}'</color>");
                 return Instance = settings;
             }
 
-            /* Debug.Log($"No setting found in project, creating a new one at <color=cyan>'{settingsPath}'</color>"); */
+            Debug.Log($"No setting found in project, creating a new one at <color=cyan>'{settingsPath}'</color>");
 
             return Instance = CreateSettingsAt(settingsPath);
-        }
-
-        internal static SerializedObject GetSerializedSettings()
-        {
-            return new SerializedObject(GetOrCreateSettings());
         }
 
         public void CheckPath()
@@ -108,7 +113,8 @@ namespace NullCheckerEditor
             Instance._settingPathOverride = _settingPathOverride.Replace('/', '\\');
             if(_settingPathOverride[_settingPathOverride.Length - 1].Equals('\\'))
             {
-                Debug.LogWarning($"Invalid synthax, the path can't end with '/' or '\\', it may be removed when unfocus");
+
+                Debug.LogWarning($"Invalid synthax, the setting path can't end with '/' or '\\'");
                 Instance._settingPathOverride = _settingPathOverride.Remove(_settingPathOverride.Length - 1, 1);
             }
             
@@ -142,12 +148,12 @@ namespace NullCheckerEditor
 
         private void MoveSettings(string newPath)
         {
-            /* Debug.Log($"initialize settings movement to <color=cyan>'{newPath}'</color>"); */
-            /* Debug.Log($"Delete previous settings at <color=cyan>'{_pathOverride}'</color>"); */
+            Debug.Log($"initialize settings movement to <color=cyan>'{newPath}'</color>");
+            Debug.Log($"Delete previous settings at <color=cyan>'{_pathOverride}'</color>");
             AssetDatabase.DeleteAsset(_pathOverride);
             var parentDir = GetParentPath(_pathOverride);
             ClearFoldersOnPath(parentDir);
-            /* Debug.Log($"Creating new settings at <color=cyan>'{newPath}'</color>"); */
+            //Debug.Log($"Creating new settings at <color=cyan>'{newPath}'</color>");
             Instance = CreateSettingsAt(newPath);
         }
 
@@ -166,13 +172,15 @@ namespace NullCheckerEditor
             }
             
             var isPartOfDestinationPath = Instance._settingPathOverride.StartsWith(path);
-            isPartOfDestinationPath = isPartOfDestinationPath && Instance._settingPathOverride[path.Length].Equals('\\');
-            if(isPartOfDestinationPath) {
-                /* Debug.Log($"<color=cyan>'{path}'</color> is part of the destination path, end of cleaning"); */
+            //Debug.Log($"path <color=cyan>{path}</color> > < instance <color=cyan>{Instance._settingPathOverride}</color>");
+            isPartOfDestinationPath = isPartOfDestinationPath && Instance._settingPathOverride[path.Length - 1].Equals('\\');
+            if(isPartOfDestinationPath) 
+            {
+                Debug.Log($"<color=cyan>'{path}'</color> is part of the destination path, end of cleaning"); 
                 return;
             }
 
-            /* Debug.Log($"Deleting folder at <color=cyan>'{path}'</color>"); */
+            Debug.Log($"Deleting folder at <color=cyan>'{path}'</color>");
             FileUtil.DeleteFileOrDirectory(path);
             FileUtil.DeleteFileOrDirectory($"{path}.meta");
             var parentDir = GetParentPath(path);
@@ -187,8 +195,9 @@ namespace NullCheckerEditor
         private static NullCheckerSettings CreateSettingsAt(string relativePath)
         {
             /* Debug.Log($"Creation of a new setting instance due not existing settings or modification of the path"); */
-
-            var settings = ScriptableObject.CreateInstance<NullCheckerSettings>();
+            NullCheckerSettings settings = Instance?.CopySettings();
+            if(!settings) settings = ScriptableObject.CreateInstance<NullCheckerSettings>();
+            
             settings._settingPathOverride = relativePath;
             /* Debug.Log($"Update of _pathOverride: previous was <color=cyan>'{_pathOverride}'</color>"); */
             _pathOverride = relativePath;
@@ -203,7 +212,8 @@ namespace NullCheckerEditor
             //AssetDatabase.Refresh();
             AssetDatabase.CreateAsset(settings, $"{_pathOverride}\\{SETTINGS_ASSETS_NAME}");
             AssetDatabase.SaveAssets();
-            Debug.Log($"Created new settings at <color=cyan>'{_pathOverride}\\{SETTINGS_ASSETS_NAME}'</color>");
+            //LEAVE THIS ONE PLZ
+            Debug.Log($"Created new settings at <color=cyan>'{_pathOverride}\\{SETTINGS_ASSETS_NAME}'</color>", NullCheckerSettings.Instance);
 
             return settings;
         }
@@ -211,6 +221,19 @@ namespace NullCheckerEditor
         private string GetParentPath(string path)
         {
             return Path.GetDirectoryName(path);
+        }
+
+        private NullCheckerSettings CopySettings()
+        {
+            var settings = ScriptableObject.CreateInstance<NullCheckerSettings>();
+            settings._defaultWarning = Instance._defaultWarning;
+            settings._errorColor = Instance._errorColor;
+            settings._linePixelSize = Instance._linePixelSize;
+            settings._linePixelSpacing = Instance._linePixelSpacing;
+            settings._settingPathOverride = Instance._settingPathOverride;
+            settings._validColor = Instance._validColor;
+
+            return settings;
         }
 
         #endregion
