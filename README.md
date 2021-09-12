@@ -19,7 +19,7 @@ You will find by default a '_Assets/Nullchecker/Settings/NullCheckerSettings.ass
 - **Line spacing**: Space in pixel between two line of error message.  
 - **Valid color**: Color your _[Object](https://docs.unity3d.com/ScriptReference/Object.html)_ reference will be highlighted with if a reference exists.  
 - **Error color**: Color your _[Object](https://docs.unity3d.com/ScriptReference/Object.html)_ reference will be highlighted with if a reference is missing.
-- **Default warning**: Default message displayed next to a missing reference. If the string is empty,   
+- **Default warning**: Default message displayed next to a missing reference. If the string is empty, no message will appear and the line will pop  
 - **Setting path override**: Allow you to specify a new path for the setting of the _null checker_ if you want to.   
 
 ## Known issues 
