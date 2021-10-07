@@ -2,7 +2,7 @@ using System.IO;
 using UnityEditor;
 using UnityEngine;
 
-namespace NullCheckerEditor
+namespace NullChecker.Editor
 {
     public class NullCheckerSettings : ScriptableObject
     {

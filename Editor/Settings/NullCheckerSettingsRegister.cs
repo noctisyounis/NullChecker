@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
-namespace NullCheckerEditor
+namespace NullChecker.Editor
 {
     public static class NullCheckerSettingsRegister
     {
