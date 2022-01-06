@@ -5,7 +5,7 @@ using UnityEngine;
 
 using Component = UnityEngine.Component;
 
-namespace NullCheckerEditor
+namespace NullChecker.Editor
 {
     [CustomPropertyDrawer(typeof(UnityEngine.Object), true)]
     public class ObjectDrawer : PropertyDrawer
@@ -27,6 +27,8 @@ namespace NullCheckerEditor
             {
                 _type = DeterminePropertyType();
             }
+
+            if(property == null) return;
 
             EditorGUI.BeginProperty(rect, label, _property);
             EditorGUI.DrawRect(rect, WillNeedFix() ? _errorColor : _okColor);
@@ -55,6 +57,7 @@ namespace NullCheckerEditor
                     {
                         DrawFixGameObjectButton(buttonRect);
                     }
+                    
                     else if(_type.IsSubclassOf(typeof(Component)))
                     {
                         DrawFixComponentButton(buttonRect);
@@ -156,9 +159,9 @@ namespace NullCheckerEditor
             if(property != null) return property.PropertyType;
             
             var field = targetObjectType.GetField(_property.name, 
-                                                    BindingFlags.Instance | 
-                                                    BindingFlags.NonPublic | 
-                                                    BindingFlags.Public);
+                                                  BindingFlags.Instance | 
+                                                  BindingFlags.NonPublic | 
+                                                  BindingFlags.Public);
 
             if(field != null) return field.FieldType;
 
